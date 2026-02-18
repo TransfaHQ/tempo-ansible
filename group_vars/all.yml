@@ -1,0 +1,10 @@
+---
+tempo_http_addr: 127.0.0.1
+tempo_http_port: 8545
+tempo_p2p_port: 30303
+tempo_chain: moderato
+tempo_metrics_port: 9000
+tempo_data_dir: /var/lib/tempo
+tempo_log_dir: /var/log/tempo
+tempo_install_url: https://tempo.xyz/install
+promtail_version: 3.3.2
