@@ -1,0 +1,21 @@
+groups:
+  - name: Node Alerts
+    interval: 1m
+    rules:
+      - alert: NodeHasNoConnectedPeers
+        expr: reth_network_connected_peers < 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node {{ $labels.instance }} has no connected peers"
+          description: "The node has been without peers for more than 2 minutes. This may indicate network issues."
+
+      - alert: NodeIsOutOfSync
+        expr: increase(reth_sync_checkpoint{stage="Finish"}[5m]) < 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node {{ $labels.instance }} is out of sync"
+          description: "The node has not processed any new blocks in the last 5 minutes. It may be stalled or disconnected from the network."
