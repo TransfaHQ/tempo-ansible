@@ -1,0 +1,12 @@
+---
+all:
+	host:
+		example-1:
+			ansible_user: ubuntu
+			ansible_host: <SOME_IP>
+			deploy_user: ubuntu
+			deploy_group: ubuntu
+			tempo_version: v1.1.4
+			tempo_chain: moderato
+			tempo_http_addr: 127.0.0.1
+			tempo_data_dir: /data/tempo

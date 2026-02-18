@@ -1,0 +1,17 @@
+---
+- name: Run tempoup to upgrade Tempo
+  ansible.builtin.command: /home/{{ deploy_user }}/.tempo/bin/tempoup -i {{ tempo_version }}
+  become: true
+  become_user: "{{ deploy_user }}"
+  register: tempoup_result
+  changed_when: "'already installed' not in tempoup_result.stdout"
+
+
+- name: Copy new tempo binary to /usr/local/bin
+  ansible.builtin.copy:
+    src: "/home/{{ deploy_user }}/.tempo/bin/tempo"
+    dest: /usr/local/bin/tempo
+    mode: '0755'
+    remote_src: true
+  notify: Restart tempo
+

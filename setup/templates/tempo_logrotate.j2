@@ -1,0 +1,13 @@
+{{ tempo_log_dir }}/*.log {
+  daily
+  rotate 14
+  compress
+  delaycompress
+  notifempty
+  missingok
+  create 0640 {{ deploy_user }} {{ deploy_group }}
+  sharedscripts
+  postrotate
+    systemctl reload tempo 2>/dev/null || true
+  endscript
+}

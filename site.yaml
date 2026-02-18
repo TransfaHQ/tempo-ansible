@@ -1,0 +1,11 @@
+---
+- name: Setup Tempo
+  hosts: all
+  become: true
+  roles:
+   - role: setup
+     tags: setup
+   - role: download
+     tags: download
+   - role: upgrade
+     tags: upgrade

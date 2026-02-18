@@ -1,0 +1,20 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart tempo
+  ansible.builtin.systemd:
+    name: tempo
+    state: restarted
+
+- name: Restart promtail
+  ansible.builtin.systemd:
+    name: promtail
+    state: restarted
+    daemon_reload: true
+
+- name: Reload caddy
+  ansible.builtin.systemd:
+    name: caddy
+    state: reloaded

@@ -1,0 +1,57 @@
+[Unit]
+Description=Tempo RPC Node
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User={{ deploy_user }}
+Group={{ deploy_group }}
+WorkingDirectory={{ tempo_data_dir }}
+Environment=RUST_LOG=info
+
+ExecStart=/usr/local/bin/tempo node \
+  --datadir {{ tempo_data_dir }} \
+  --follow \
+  --chain {{ tempo_chain }} \
+  --port {{ tempo_p2p_port }} \
+  --discovery.addr 0.0.0.0 \
+  --discovery.port {{ tempo_p2p_port }} \
+  --nat extip:{{ ansible_default_ipv4.address }} \
+{% if tempo_trusted_peers is defined and tempo_trusted_peers | length > 0 %}
+  --trusted-peers {{ tempo_trusted_peers | join(',') }} \
+{% endif %}
+{% if tempo_bootnodes is defined and tempo_bootnodes | length > 0 %}
+  --bootnodes {{ tempo_bootnodes | join(',') }} \
+{% endif %}
+  --http \
+  --http.addr {{ tempo_http_addr }} \
+  --http.port {{ tempo_http_port }} \
+  --http.api eth,net,web3,txpool,trace,debug \
+  --log.file.directory {{ tempo_log_dir }} \
+  --rpc.max-logs-per-response 100000 \
+  --metrics {{ ansible_tailscale0.ipv4.address }}:{{ tempo_metrics_port }}
+
+Restart=on-failure
+RestartSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tempo
+LimitNOFILE=infinity
+
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

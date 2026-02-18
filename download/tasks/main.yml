@@ -1,0 +1,24 @@
+---
+- name: Create tempo-download systemd service
+  ansible.builtin.template:
+    src: tempo-download.service.j2
+    dest: /etc/systemd/system/tempo-download.service
+    mode: '0644'
+  register: tempo_download_service
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: tempo_download_service.changed
+
+- name: Start tempo-download service (no-block)
+  ansible.builtin.command: systemctl start tempo-download --no-block
+  register: tempo_start
+  changed_when: tempo_start.rc == 0
+
+- name: Show how to monitor progress
+  ansible.builtin.debug:
+    msg: |
+      Tempo download started in background.
+      Monitor progress with: journalctl -u tempo-download -f
+      Check status with: systemctl status tempo-download

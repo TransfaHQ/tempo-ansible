@@ -1,0 +1,5 @@
+---
+- name: Restart tempo
+  ansible.builtin.systemd:
+    name: tempo
+    state: restarted

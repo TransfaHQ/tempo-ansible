@@ -1,0 +1,200 @@
+---
+- name: Create Tempo data directory
+  ansible.builtin.file:
+    path: "{{ tempo_data_dir }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: '0755'
+
+- name: Create Tempo log directory
+  ansible.builtin.file:
+    path: "{{ tempo_log_dir }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: '0755'
+
+- name: Download and install Tempo
+  ansible.builtin.shell: |
+    curl -L {{ tempo_install_url }} | bash
+  args:
+    creates: /root/.tempo/bin/tempo
+
+- name: Check if Tempo binary exists
+  ansible.builtin.stat:
+    path: /usr/local/bin/tempo
+  register: tempo_binary
+
+- name: Copy Tempo binary to /usr/local/bin
+  ansible.builtin.copy:
+    src: /root/.tempo/bin/tempo
+    dest: /usr/local/bin/tempo
+    mode: '0755'
+    remote_src: true
+  when: not tempo_binary.stat.exists
+
+- name: Deploy Tempo systemd service
+  ansible.builtin.template:
+    src: tempo.service.j2
+    dest: /etc/systemd/system/tempo.service
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart tempo
+
+- name: Deploy Tempo logrotate configuration
+  ansible.builtin.template:
+    src: tempo_logrotate.j2
+    dest: /etc/logrotate.d/tempo
+    mode: '0644'
+
+- name: Allow Tempo P2P TCP through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ tempo_p2p_port }}"
+    proto: tcp
+    comment: Tempo P2P
+
+- name: Allow Tempo P2P UDP through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ tempo_p2p_port }}"
+    proto: udp
+    comment: Tempo P2P Discovery
+
+- name: Allow Tempo Metrics through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ tempo_metrics_port }}"
+    proto: tcp
+    comment: Tempo Metrics
+
+# Promtail - Ship Tempo logs to Loki
+- name: Download promtail
+  ansible.builtin.get_url:
+    url: "https://github.com/grafana/loki/releases/download/v{{ promtail_version }}/promtail-linux-amd64.zip"
+    dest: /tmp/promtail.zip
+    mode: '0644'
+
+- name: Install unzip
+  ansible.builtin.apt:
+    name: unzip
+    state: present
+
+- name: Extract promtail
+  ansible.builtin.unarchive:
+    src: /tmp/promtail.zip
+    dest: /tmp
+    remote_src: true
+
+- name: Install promtail binary
+  ansible.builtin.copy:
+    src: /tmp/promtail-linux-amd64
+    dest: /usr/local/bin/promtail
+    mode: '0755'
+    remote_src: true
+  notify: Restart promtail
+
+- name: Create promtail config directory
+  ansible.builtin.file:
+    path: /etc/promtail
+    state: directory
+    mode: '0755'
+
+- name: Deploy promtail config
+  ansible.builtin.template:
+    src: promtail-config.yml.j2
+    dest: /etc/promtail/config.yml
+    mode: '0644'
+  notify: Restart promtail
+
+- name: Deploy promtail systemd service
+  ansible.builtin.template:
+    src: promtail.service.j2
+    dest: /etc/systemd/system/promtail.service
+    mode: '0644'
+  notify: Restart promtail
+
+- name: Enable and start promtail
+  ansible.builtin.systemd:
+    name: promtail
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# Caddy - Reverse proxy to Tempo RPC
+- name: Install Caddy dependencies
+  ansible.builtin.apt:
+    name:
+      - debian-keyring
+      - debian-archive-keyring
+      - apt-transport-https
+      - curl
+    state: present
+    update_cache: true
+  when: tempo_caddy_domain is defined
+
+- name: Add Caddy GPG key
+  ansible.builtin.shell: |
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  when: tempo_caddy_domain is defined
+
+- name: Set permissions on Caddy GPG key
+  ansible.builtin.file:
+    path: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    mode: 'o+r'
+  when: tempo_caddy_domain is defined
+
+- name: Add Caddy apt repository
+  ansible.builtin.shell: |
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+  args:
+    creates: /etc/apt/sources.list.d/caddy-stable.list
+  when: tempo_caddy_domain is defined
+
+- name: Set permissions on Caddy sources list
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/caddy-stable.list
+    mode: 'o+r'
+  when: tempo_caddy_domain is defined
+
+- name: Install Caddy
+  ansible.builtin.apt:
+    name: caddy
+    state: present
+    update_cache: true
+  when: tempo_caddy_domain is defined
+
+- name: Allow HTTP through UFW
+  community.general.ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+    comment: Caddy HTTP
+  when: tempo_caddy_domain is defined
+
+- name: Allow HTTPS through UFW
+  community.general.ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+    comment: Caddy HTTPS
+  when: tempo_caddy_domain is defined
+
+- name: Deploy Caddyfile for Tempo
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /etc/caddy/Caddyfile
+    mode: '0644'
+  notify: Reload caddy
+  when: tempo_caddy_domain is defined
+
+- name: Enable and start Caddy
+  ansible.builtin.systemd:
+    name: caddy
+    enabled: true
+    state: started
+  when: tempo_caddy_domain is defined

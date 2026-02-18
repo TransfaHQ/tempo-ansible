@@ -1,0 +1,34 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://{{ loki_server }}:3100/loki/api/v1/push
+
+scrape_configs:
+  # Tempo logs
+  - job_name: tempo
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: tempo
+          host: {{ ansible_hostname }}
+          __path__: {{ tempo_log_dir }}/*.log
+
+  # Tempo systemd journal logs
+  - job_name: tempo-journal
+    journal:
+      max_age: 12h
+      labels:
+        job: tempo-journal
+        host: {{ ansible_hostname }}
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        regex: tempo.service
+        action: keep
+      - source_labels: ['__journal__systemd_unit']
+        target_label: 'unit'

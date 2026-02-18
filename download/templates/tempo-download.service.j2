@@ -1,0 +1,17 @@
+[Unit]
+Description=Tempo Chain Data Download
+After=network.target
+
+[Service]
+Type=oneshot
+User={{ deploy_user }}
+Group={{ deploy_group }}
+WorkingDirectory={{ tempo_data_dir }}
+ExecStart=/usr/local/bin/tempo download --datadir {{ tempo_data_dir }} --chain {{ tempo_chain }}
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=infinity
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
