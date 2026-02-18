@@ -1,6 +1,6 @@
 # tempo-ansible
 
-Ansible playbook for deploying and managing Tempo RPC nodes. We recommend going through the playbook and adjusting to your use case. This playbook is provided as-is. It is a more of starting point than a ready to use playbook.
+Ansible playbook for deploying and managing Tempo RPC nodes. We recommend going through the playbook and adjusting to your use case. This playbook is provided as-is. It is more of starting point than a ready to use playbook.
 
 ## Roles
 
